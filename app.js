@@ -203,9 +203,19 @@ async function renderPage(p) {
     if (myGen !== gen) return;
     p.div.style.setProperty("--scale-factor", vp.scale);
     p.text.replaceChildren();
-    const tl = new pdfjsLib.TextLayer({ textContentSource: page.streamTextContent(), container: p.text, viewport: vp });
+    const tc = await page.getTextContent();
+    if (myGen !== gen) return;
+    const fontInfo = {};
+    for (const [name, st] of Object.entries(tc.styles)) {
+      let real = "";
+      try { if (page.commonObjs.has(name)) real = page.commonObjs.get(name).name || ""; } catch {}
+      fontInfo[name] = fontStyleFor(real, st.fontFamily);
+      st.fontFamily = fontInfo[name].family;
+    }
+    const tl = new pdfjsLib.TextLayer({ textContentSource: tc, container: p.text, viewport: vp });
     await tl.render();
     if (myGen !== gen) return;
+    fitSpans(tl.textDivs, tc.items, fontInfo);
     p.text.style.width = "100%"; p.text.style.height = "100%";
     p.index = null;
     p.rendered = true;
@@ -269,6 +279,57 @@ $("fileInput").addEventListener("change", async (e) => {
   idb.put("last", { name: file.name, data: buf });
   e.target.value = "";
 });
+
+
+// ---------- text layer fitting ----------
+// PDF.js lays the invisible text layer out with a generic font. When a paper's font is
+// misclassified (e.g. NimbusRomNo9L treated as sans-serif) the letters drift from the
+// rendered glyphs. Map real font names to metric-compatible system fonts instead.
+const SERIF = '"Times New Roman", Times, "Nimbus Roman", "Liberation Serif", serif';
+const SANS = 'Helvetica, Arial, "Liberation Sans", "Nimbus Sans", sans-serif';
+const MONO = '"Courier New", Courier, "Liberation Mono", monospace';
+function fontStyleFor(real, generic) {
+  const n = real.replace(/^[A-Z]{6}\+/, "");
+  let family;
+  if (/Times|NimbusRom|Nimbus ?Roman|Termes|Tinos|LiberationSerif|STIX|Georgia|Minion|Palatino|Palladio|Pagella|Utopia|Charter|^CM(R|BX|TI|SL|SS|MI|SY|EX)|^LM|SFRM|SFBX|SFTI|Computer ?Modern|Cambria|Garamond/i.test(n)) family = SERIF;
+  else if (/Helvetica|Arial|NimbusSan|Heros|Arimo|LiberationSans|Calibri|Carlito|Verdana|Segoe|Roboto|OpenSans|Source ?Sans|Myriad/i.test(n)) family = SANS;
+  else if (/Courier|NimbusMon|Cursor|Cousine|LiberationMono|Consolas|Menlo|^CMTT|^LMMono|SFTT/i.test(n)) family = MONO;
+  else family = /mono/i.test(generic || "") ? MONO : /sans/i.test(generic || "") && !n ? SANS : SERIF;
+  return {
+    family,
+    italic: /Ital|Oblique|Slant|^CM(TI|MI|SL)|SFTI|SFSL/i.test(n),
+    bold: /Bold|Medi|Semi|Demi|Black|Heavy|^CMBX|SFBX/i.test(n),
+  };
+}
+
+// Keep each span exactly as wide as the PDF says, but put justification slack into
+// word spacing (where the PDF puts it) instead of stretching every letter.
+function fitSpans(divs, items, fontInfo) {
+  const jobs = [];
+  for (let i = 0; i < divs.length; i++) {
+    const d = divs[i], it = items[i];
+    if (!d || !it || !it.str || !d.isConnected) continue;
+    const tf = d.style.transform || "";
+    if (tf && !/^scaleX\([\d.]+\)$/.test(tf.trim())) continue; // rotated text: leave as is
+    jobs.push({ d, it, w: d.getBoundingClientRect().width, info: fontInfo[it.fontName] });
+  }
+  for (const j of jobs) {
+    if (j.info?.italic) j.d.style.fontStyle = "italic";
+    if (j.info?.bold) j.d.style.fontWeight = "bold";
+    j.d.style.transform = "none";
+  }
+  for (const j of jobs) j.n = j.d.getBoundingClientRect().width;
+  for (const j of jobs) {
+    if (!j.n || !j.w) continue;
+    const spaces = (j.it.str.match(/ /g) || []).length;
+    const slack = j.w - j.n;
+    if (spaces > 0 && slack > 0 && slack / spaces < j.n / Math.max(1, j.it.str.length) * 3) {
+      j.d.style.wordSpacing = (slack / spaces) + "px";
+    } else {
+      j.d.style.transform = `scaleX(${j.w / j.n})`;
+    }
+  }
+}
 
 // ---------- text index per page ----------
 function getIndex(p) {
