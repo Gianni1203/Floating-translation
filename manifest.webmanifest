@@ -1,0 +1,13 @@
+{
+  "name": "Pencil 論文閱讀器",
+  "short_name": "論文閱讀器",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9edf1",
+  "theme_color": "#2c5a86",
+  "icons": [
+    { "src": "icons/icon-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

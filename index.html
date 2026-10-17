@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Pencil 論文閱讀器</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="論文閱讀器">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-180.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="bar" id="bar">
+  <label class="btn primary" for="fileInput">開啟 PDF</label>
+  <input type="file" id="fileInput" accept="application/pdf,.pdf" hidden>
+  <div class="docname" id="docName">尚未開啟論文</div>
+  <div class="zoom" role="group" aria-label="縮放">
+    <button class="btn icon" id="zoomOut" aria-label="縮小">−</button>
+    <button class="btn zoomval" id="zoomFit" title="符合寬度">100%</button>
+    <button class="btn icon" id="zoomIn" aria-label="放大">+</button>
+  </div>
+  <span class="pageind" id="pageInd"></span>
+  <button class="btn" id="settingsBtn">設定</button>
+</header>
+
+<main id="viewer" class="viewer">
+  <section class="empty" id="empty">
+    <h1>開啟一篇論文</h1>
+    <p>用 Apple Pencil 懸停在單字上看中文，筆尖點一下句子翻譯整句，手指照常捲動。</p>
+    <label class="btn primary big" for="fileInput">選擇 PDF 檔案</label>
+    <p class="hint" id="emptyHint">整句翻譯需要先到「設定」填入 Claude API key；單字查詢使用離線字典，不需要網路。</p>
+  </section>
+</main>
+
+<div id="overlay" class="overlay" aria-hidden="true"></div>
+<div id="bubble" class="bubble" hidden></div>
+<div id="tipDot" class="tipdot" hidden></div>
+<div id="toast" class="toast" hidden></div>
+
+<dialog id="settings" class="settings">
+  <form method="dialog" class="settings-inner" id="settingsForm">
+    <h2>設定</h2>
+
+    <section class="group">
+      <h3>Claude API</h3>
+      <label for="apiKey">API key</label>
+      <div class="row">
+        <input type="password" id="apiKey" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="sk-ant-...">
+        <button type="button" class="btn" id="toggleKey">顯示</button>
+      </div>
+      <p class="help">key 只存在這台裝置的瀏覽器裡，網頁直接連到 Anthropic，不會經過其他伺服器。建議在 Claude Console 設定每月花費上限。</p>
+      <label for="model">翻譯模型</label>
+      <select id="model">
+        <option value="claude-haiku-5-5">Claude Haiku 5.5（快、最省錢）</option>
+        <option value="claude-sonnet-5-5">Claude Sonnet 5.5（較準、較貴）</option>
+      </select>
+      <div class="row">
+        <button type="button" class="btn" id="testKey">測試連線</button>
+        <span class="status" id="testStatus"></span>
+      </div>
+    </section>
+
+    <section class="group">
+      <h3>懸停</h3>
+      <label for="dwell">停留多久才翻譯單字：<output id="dwellOut">250 ms</output></label>
+      <input type="range" id="dwell" min="100" max="700" step="50" value="250">
+      <label class="check"><input type="checkbox" id="showDot" checked> 顯示 iPad 判定的筆尖位置（藍色小圈）</label>
+      <label class="check"><input type="checkbox" id="aiUnknown" checked> 字典查不到的詞自動問 Claude</label>
+    </section>
+
+    <section class="group">
+      <h3>用量</h3>
+      <p class="usage" id="usage">尚無紀錄</p>
+      <div class="row">
+        <button type="button" class="btn" id="resetUsage">歸零用量</button>
+        <button type="button" class="btn" id="clearCache">清除翻譯快取</button>
+      </div>
+    </section>
+
+    <div class="actions">
+      <button class="btn primary" value="close">完成</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
